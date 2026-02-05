@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Valentine</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,600;0,700;0,800&display=swap" rel="stylesheet">
+
+<style>
+  body {
+    margin: 0;
+    background: #fff0f5;
+    font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #start-screen {
+    position: fixed;
+    inset: 0;
+    background: #fff0f5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 60px 20px 80px;
+    z-index: 10;
+  }
+
+  #start-title {
+    font-size: 40px;
+    font-weight: 700;
+    color: #c9184a;
+    margin-top: 120px;
+  }
+
+  #start-screen button {
+    width: 220px;
+    padding: 20px;
+    font-size: 22px;
+    border-radius: 18px;
+    border: none;
+    background: #ff4d6d;
+    color: white;
+    font-weight: 600;
+  }
+
+  #top-spacer {
+    height: 40px;
+  }
+
+  #sentence {
+    font-size: 36px;
+    text-align: center;
+    color: #c9184a;
+    min-height: 90px;
+    font-weight: 600;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #game-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+
+  #game-container {
+    width: 360px;
+    height: 360px;
+    position: relative;
+  }
+
+  canvas {
+    background: white;
+    border-radius: 18px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    display: block;
+  }
+
+  #end-screen {
+    position: absolute;
+    inset: 0;
+    background: white;
+    border-radius: 18px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 30px;
+    text-align: center;
+  }
+
+  .end-main {
+    font-size: 27px;
+    font-weight: 750;
+    color: #c9184a;
+  }
+
+  .end-sub {
+    font-size: 20px;
+  }
+
+  #end-screen button {
+    width: 90%;
+    padding: 22px;
+    font-size: 24px;
+    border-radius: 18px;
+    border: none;
+    background: #ff4d6d;
+    color: white;
+    font-weight: 600;
+  }
+
+  .controls {
+    margin-bottom: 25px;
+    display: grid;
+    grid-template-columns: 70px 70px 70px;
+    grid-template-rows: 70px 70px 70px;
+    gap: 10px;
+  }
+
+  .controls button {
+    border: none;
+    border-radius: 16px;
+    background: #ff4d6d;
+    color: white;
+    font-size: 26px;
+    font-weight: 600;
+  }
+
+  .controls .empty {
+    background: transparent;
+  }
+</style>
+</head>
+
+<body>
+
+<div id="start-screen">
+  <div id="start-title">FOR V &lt;3</div>
+  <button onclick="startGame()">Start</button>
+</div>
+
+<div id="top-spacer"></div>
+
+<div id="sentence"></div>
+
+<div id="game-wrapper">
+  <div id="game-container">
+    <canvas id="game" width="360" height="360"></canvas>
+
+    <div id="end-screen">
+      <button onclick="accept()">Yes</button>
+      <button onclick="accept()">Yes</button>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="empty"></div>
+  <button onclick="setDir(0,-1)">▲</button>
+  <div class="empty"></div>
+
+  <button onclick="setDir(-1,0)">◀</button>
+  <div class="empty"></div>
+  <button onclick="setDir(1,0)">▶</button>
+
+  <div class="empty"></div>
+  <button onclick="setDir(0,1)">▼</button>
+  <div class="empty"></div>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const grid = 10;
+const size = 36;
+
+let snake = [{ x: 4, y: 4 }];
+let prevSnake = [{ x: 4, y: 4 }];
+let dir = { x: 1, y: 0 };
+let food = spawnFood();
+
+const words = ["Baby,", "Will", "You", "Be", "My", "Valentine?"];
+let wordIndex = 0;
+
+let lastStepTime = 0;
+const stepTime = 180;
+let moveProgress = 0;
+let gameEnded = false;
+let gameStarted = false;
+
+function spawnFood() {
+  return {
+    x: Math.floor(Math.random() * grid),
+    y: Math.floor(Math.random() * grid)
+  };
+}
+
+function setDir(x, y) {
+  if (gameEnded || !gameStarted) return;
+  dir = { x, y };
+}
+
+function drawHeart(x, y) {
+  ctx.fillStyle = "#ff4d6d";
+  ctx.beginPath();
+  ctx.moveTo(x + size / 2, y + size / 5);
+  ctx.bezierCurveTo(x, y, x, y + size / 2, x + size / 2, y + size);
+  ctx.bezierCurveTo(x + size, y + size / 2, x + size, y, x + size / 2, y + size / 5);
+  ctx.fill();
+}
+
+function update() {
+  prevSnake = snake.map(s => ({ ...s }));
+
+  const head = {
+    x: snake[0].x + dir.x,
+    y: snake[0].y + dir.y
+  };
+
+  if (head.x < 0 || head.y < 0 || head.x >= grid || head.y >= grid) return;
+
+  snake.unshift(head);
+
+  if (head.x === food.x && head.y === food.y) {
+    document.getElementById("sentence").textContent +=
+      (wordIndex === 0 ? "" : " ") + words[wordIndex];
+    wordIndex++;
+    food = spawnFood();
+
+    if (wordIndex === words.length) endGame();
+  } else {
+    snake.pop();
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#ff758f";
+  snake.forEach((segment, i) => {
+    const prev = prevSnake[i] || segment;
+    const x = (prev.x + (segment.x - prev.x) * moveProgress) * size;
+    const y = (prev.y + (segment.y - prev.y) * moveProgress) * size;
+    ctx.fillRect(x, y, size, size);
+  });
+
+  drawHeart(food.x * size, food.y * size);
+}
+
+function loop(timestamp) {
+  if (!gameStarted || gameEnded) return;
+
+  if (!lastStepTime) lastStepTime = timestamp;
+  const delta = timestamp - lastStepTime;
+  moveProgress = Math.min(delta / stepTime, 1);
+
+  if (delta >= stepTime) {
+    update();
+    lastStepTime = timestamp;
+    moveProgress = 0;
+  }
+
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function startGame() {
+  document.getElementById("start-screen").style.display = "none";
+  gameStarted = true;
+  requestAnimationFrame(loop);
+}
+
+function endGame() {
+  gameEnded = true;
+  document.getElementById("end-screen").style.display = "flex";
+}
+
+function accept() {
+  document.getElementById("end-screen").innerHTML = `
+    <div class="end-main">I love you so much Vykha :)</div>
+    <div class="end-sub">umma umma umma</div>
+  `;
+}
+</script>
+
+</body>
+</html>
